@@ -1,12 +1,9 @@
 import numpy as np
-from itertools import product
+import random
 
-# zona_yoshi.py
-
-import numpy as np
-
-CELL_SIZE = 60     # Tamaño de cada celda del tablero en píxeles
-BOARD_SIZE = 8     # Tamaño del tablero (8x8)
+# Configuración del tablero
+CELL_SIZE = 60
+BOARD_SIZE = 8
 
 # Tipos de casillas
 NORMAL = 1
@@ -16,12 +13,24 @@ RED = 4
 YOSHI_GREEN = 5
 YOSHI_RED = 6
 
-# Movimiento de caballo
+# Movimientos del caballo
 KNIGHT_MOVES = [(-2, -1), (-2, 1), (-1, -2), (-1, 2),
                 (1, -2), (1, 2), (2, -1), (2, 1)]
 
-# Tablero inicial
+# Zonas especiales (esquinas + celdas adyacentes)
+SPECIAL_ZONES = {
+    "top_left": [(0, 0), (0, 1), (1, 0), (1, 1), (2, 0)],
+    "top_right": [(0, 7), (0, 6), (1, 7), (1, 6), (2, 7)],
+    "bottom_left": [(7, 0), (6, 0), (7, 1), (6, 1), (5, 0)],
+    "bottom_right": [(7, 7), (6, 7), (7, 6), (6, 6), (5, 7)]
+}
+
+def in_bounds(x, y):
+    """Verifica si una posición está dentro del tablero"""
+    return 0 <= x < BOARD_SIZE and 0 <= y < BOARD_SIZE
+
 def crear_tablero():
+    """Crea un tablero predefinido con posiciones fijas"""
     return np.array([
         [2, 3, 2, 1, 1, 4, 2, 2],
         [2, 1, 1, 1, 1, 1, 1, 2],
@@ -33,18 +42,8 @@ def crear_tablero():
         [2, 2, 2, 1, 1, 2, 2, 2],
     ])
 
-# Zonas especiales (esquinas + celdas adyacentes)
-SPECIAL_ZONES = {
-    "top_left": [(0, 0), (0, 1), (1, 0), (1, 1), (2, 0)],
-    "top_right": [(0, 7), (0, 6), (1, 7), (1, 6), (2, 7)],
-    "bottom_left": [(7, 0), (6, 0), (7, 1), (6, 1), (5, 0)],
-    "bottom_right": [(7, 7), (6, 7), (7, 6), (6, 6), (5, 7)]
-}
-
-def in_bounds(x, y):
-    return 0 <= x < 8 and 0 <= y < 8
-
 def get_knight_moves(board, pos):
+    """Obtiene todos los movimientos válidos de caballo desde una posición"""
     x, y = pos
     moves = []
     for dx, dy in KNIGHT_MOVES:
@@ -54,9 +53,11 @@ def get_knight_moves(board, pos):
     return moves
 
 def clone_board(board):
+    """Crea una copia profunda del tablero"""
     return np.copy(board)
 
 def apply_move(board, yoshi_pos, move, player):
+    """Aplica un movimiento al tablero y devuelve el nuevo estado"""
     new_board = clone_board(board)
     x, y = yoshi_pos
     new_x, new_y = move
@@ -75,49 +76,69 @@ def apply_move(board, yoshi_pos, move, player):
 
     return new_board, (new_x, new_y)
 
+def contar_zonas(board):
+    """Cuenta las zonas especiales ganadas por cada jugador"""
+    green_zones = 0
+    red_zones = 0
+    
+    for zone in SPECIAL_ZONES.values():
+        green_count = sum(1 for x, y in zone if board[x][y] == GREEN)
+        red_count = sum(1 for x, y in zone if board[x][y] == RED)
+        
+        if green_count > red_count:
+            green_zones += 1
+        elif red_count > green_count:
+            red_zones += 1
+            
+    return green_zones, red_zones
+
 def evaluate_board(board):
+    """Función de evaluación heurística para el algoritmo minimax"""
     green_positions = np.argwhere(board == YOSHI_GREEN)
     red_positions = np.argwhere(board == YOSHI_RED)
 
+    # Caso terminal: algún Yoshi no existe
     if green_positions.size == 0 or red_positions.size == 0:
         if green_positions.size == 0:
             return float('-inf')  # Verde perdió
-        else:
-            return float('inf')   # Rojo perdió
+        return float('inf')      # Rojo perdió
 
     green_pos = tuple(green_positions[0])
     red_pos = tuple(red_positions[0])
 
-    # Inicialización de métricas
-    cell_scores = {GREEN: 0, RED: 0}
-    zone_scores = {GREEN: 0, RED: 0}
-    mobility = {GREEN: 0, RED: 0}
+    # Métricas de evaluación
+    zone_scores = contar_zonas(board)
+    cell_scores = {
+        GREEN: np.sum(board == GREEN),
+        RED: np.sum(board == RED)
+    }
 
-    # Casillas pintadas
-    cell_scores[GREEN] = np.sum(board == GREEN)
-    cell_scores[RED] = np.sum(board == RED)
-
-    # Zonas especiales ganadas
+    # Progreso en zonas no decididas
+    zone_progress = 0
     for zone in SPECIAL_ZONES.values():
         green_count = sum(1 for x, y in zone if board[x][y] == GREEN)
         red_count = sum(1 for x, y in zone if board[x][y] == RED)
-        if green_count >= 3:
-            zone_scores[GREEN] += 1
-        elif red_count >= 3:
-            zone_scores[RED] += 1
+        if green_count + red_count < 4:  # Zona no completada
+            zone_progress += (green_count - red_count)
 
-    # Movilidad (número de movimientos disponibles)
-    mobility[GREEN] = len(get_knight_moves(board, green_pos))
-    mobility[RED] = len(get_knight_moves(board, red_pos))
+    # Movilidad (movimientos posibles)
+    mobility = {
+        GREEN: len(get_knight_moves(board, green_pos)),
+        RED: len(get_knight_moves(board, red_pos))
+    }
 
-    # Función de evaluación final
+    # Función de evaluación ponderada
     return (
-        10 * (zone_scores[GREEN] - zone_scores[RED]) +
-        2 * (cell_scores[GREEN] - cell_scores[RED]) +
-        (mobility[GREEN] - mobility[RED])
+        100 * (zone_scores[0] - zone_scores[1]) +  # Zonas ganadas
+        5 * zone_progress +                       # Progreso en zonas
+        2 * (cell_scores[GREEN] - cell_scores[RED]) +  # Casillas pintadas
+        0.5 * (mobility[GREEN] - mobility[RED])   # Movilidad
     )
 
 def is_terminal(board):
+    """Determina si el juego ha terminado (no quedan zonas especiales sin pintar)"""
     return not np.any(board == SPECIAL)
+
 if __name__ == "__main__":
-    print("zona_yoshi.py se ejecutó directamente (no como módulo)")
+    print("Este archivo contiene las reglas del juego y no debe ejecutarse directamente.")
+    print("Ejecuta 'control_juego.py' para iniciar el juego.")
