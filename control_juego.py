@@ -1,7 +1,6 @@
 import pygame
 import sys
 import numpy as np
-
 from zona_yoshi import *
 from GUI_yoshi import draw_board
 from minimax import minimax
@@ -9,74 +8,119 @@ from menu_niveles import seleccionar_nivel
 
 pygame.init()
 
+# Configuración inicial
 nivel = seleccionar_nivel()
-
-screen = pygame.display.set_mode((CELL_SIZE * BOARD_SIZE, CELL_SIZE * BOARD_SIZE))
+screen = pygame.display.set_mode((CELL_SIZE * BOARD_SIZE, CELL_SIZE * BOARD_SIZE + 60))
 pygame.display.set_caption("Yoshi's Zones")
 
+# Inicializar tablero
 board = crear_tablero()
 
 # Determinar profundidad por nivel
 if nivel == "facil":
-    level_depth = 1
+    level_depth = 2
 elif nivel == "medio":
-    level_depth = 3
+    level_depth = 4
 else:
-    level_depth = 5
+    level_depth = 6
 
-# Función para mover al Yoshi rojo si es posible
-def move_yoshi_red(move):
+def move_yoshi_red(new_pos):
     global board
-    red_pos = tuple(np.argwhere(board == YOSHI_RED)[0])
-    new_x, new_y = red_pos[0] + move[0], red_pos[1] + move[1]
+    try:
+        red_pos = tuple(np.argwhere(board == YOSHI_RED)[0])
+        if in_bounds(*new_pos) and board[new_pos[0]][new_pos[1]] not in (YOSHI_GREEN, YOSHI_RED, GREEN, RED):
+            board, _ = apply_move(board, red_pos, new_pos, RED)
+            return True
+    except IndexError:
+        print("Error: Yoshi Rojo no encontrado")
+    return False
 
-    if in_bounds(new_x, new_y) and board[new_x][new_y] not in (YOSHI_GREEN, YOSHI_RED, GREEN, RED):
-        board, _ = apply_move(board, red_pos, (new_x, new_y), RED)
+def machine_turn():
+    global board
+    try:
+        green_pos = tuple(np.argwhere(board == YOSHI_GREEN)[0])
+        red_pos = tuple(np.argwhere(board == YOSHI_RED)[0])
+        
+        _, best_move = minimax(board, green_pos, red_pos, 0, True, float('-inf'), float('inf'), level_depth)
+        
+        if best_move:
+            board, _ = apply_move(board, green_pos, best_move, GREEN)
+            return True
+    except IndexError:
+        print("Error: Yoshi Verde no encontrado")
+    return False
+
+def show_final_message():
+    green_zones, red_zones = contar_zonas(board)
+    if green_zones > red_zones:
+        message = "¡Gana el Yoshi Verde!"
+    elif red_zones > green_zones:
+        message = "¡Gana el Yoshi Rojo!"
+    else:
+        message = "¡Empate!"
+    
+    font = pygame.font.SysFont(None, 48)
+    text = font.render(message, True, (0, 0, 0))
+    text_rect = text.get_rect(center=(BOARD_SIZE*CELL_SIZE/2, (60 + CELL_SIZE*BOARD_SIZE)/2))
+
+    
+    s = pygame.Surface((BOARD_SIZE*CELL_SIZE, BOARD_SIZE*CELL_SIZE), pygame.SRCALPHA)
+    s.fill((255, 255, 255, 128))
+    screen.blit(s, (0, 0))
+    screen.blit(text, text_rect)
+    pygame.display.flip()
+    pygame.time.wait(3000)
 
 # Bucle principal
 running = True
+turno_humano = False  # Máquina empieza primero
+
+# Primer turno de la máquina
+if not is_terminal(board):
+    machine_turn()
+    turno_humano = True
+
 while running:
     draw_board(screen, board)
-
+    
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
+        
         elif event.type == pygame.KEYDOWN:
-            direction = None
-            if event.key in [pygame.K_KP1, pygame.K_1]:
-                direction = (2, -1)
-            elif event.key in [pygame.K_KP2, pygame.K_2]:
-                direction = (1, -2)
-            elif event.key in [pygame.K_KP3, pygame.K_3]:
-                direction = (1, 2)
-            elif event.key in [pygame.K_KP4, pygame.K_4]:
-                direction = (2, 1)
-            elif event.key in [pygame.K_KP5, pygame.K_5]:
-                direction = (-2, -1)
-            elif event.key in [pygame.K_KP6, pygame.K_6]:
-                direction = (-2, 1)
-            elif event.key in [pygame.K_KP7, pygame.K_7]:
-                direction = (-1, -2)
-            elif event.key in [pygame.K_KP8, pygame.K_8]:
-                direction = (-1, 2)
-
-            if direction:
-                red_positions = np.argwhere(board == YOSHI_RED)
-                if red_positions.size > 0:
-                    move_yoshi_red(direction)
-
-                    if not is_terminal(board):
-                        green_positions = np.argwhere(board == YOSHI_GREEN)
-                        red_positions = np.argwhere(board == YOSHI_RED)
-
-                        if green_positions.size > 0 and red_positions.size > 0:
-                            green_pos = tuple(green_positions[0])
-                            red_pos = tuple(red_positions[0])
-
-                            _, best_move = minimax(board, green_pos, red_pos, 0, True, float('-inf'), float('inf'), level_depth)
-                            if best_move:
-                                board, _ = apply_move(board, green_pos, best_move, GREEN)
-
-            if is_terminal(board):
-                print("¡Fin del juego!")
+            if event.key == pygame.K_ESCAPE:
                 running = False
+        
+        elif event.type == pygame.MOUSEBUTTONDOWN and turno_humano:
+            try:
+                mouse_pos = pygame.mouse.get_pos()
+                clicked_col = mouse_pos[0] // CELL_SIZE
+                if mouse_pos[1] < 60:
+                    continue  # Ignorar clics fuera del tablero
+
+                clicked_row = (mouse_pos[1] - 60) // CELL_SIZE
+                
+                red_pos = tuple(np.argwhere(board == YOSHI_RED)[0])
+                possible_moves = get_knight_moves(board, red_pos)
+                
+                if (clicked_row, clicked_col) in possible_moves:
+                    if move_yoshi_red((clicked_row, clicked_col)):
+                        turno_humano = False
+                        
+                        # Turno de la máquina
+                        if not is_terminal(board):
+                            pygame.time.delay(500)  # Pequeña pausa para ver el movimiento
+                            if machine_turn():
+                                turno_humano = True
+                        
+                        if is_terminal(board):
+                            show_final_message()
+                            running = False
+            except IndexError:
+                print("Error en el movimiento del jugador")
+                continue
+
+    pygame.display.flip()
+
+pygame.quit()
+sys.exit()
