@@ -74,6 +74,7 @@ def show_final_message():
 # Bucle principal
 running = True
 turno_humano = False  # Máquina empieza primero
+display_board = board  # Tablero que se muestra (puede incluir movimientos posibles)
 
 # Primer turno de la máquina
 if not is_terminal(board):
@@ -81,7 +82,20 @@ if not is_terminal(board):
     turno_humano = True
 
 while running:
-    draw_board(screen, board)
+    # Si es turno del humano, mostrar movimientos posibles
+    if turno_humano:
+        try:
+            red_pos = tuple(np.argwhere(board == YOSHI_RED)[0])
+            display_board, possible_moves = show_possible_moves(board, red_pos)
+        except IndexError:
+            display_board = board
+            possible_moves = []
+    else:
+        # Si es turno de la máquina, limpiar movimientos posibles
+        display_board = clear_possible_moves(board)
+        possible_moves = []
+    
+    draw_board(screen, display_board)
     
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -106,6 +120,9 @@ while running:
                 if (clicked_row, clicked_col) in possible_moves:
                     if move_yoshi_red((clicked_row, clicked_col)):
                         turno_humano = False
+                        
+                        # Limpiar movimientos posibles antes del turno de la máquina
+                        board = clear_possible_moves(board)
                         
                         # Turno de la máquina
                         if not is_terminal(board):

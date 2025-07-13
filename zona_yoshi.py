@@ -12,6 +12,7 @@ GREEN = 3
 RED = 4
 YOSHI_GREEN = 5
 YOSHI_RED = 6
+POSSIBLE_MOVE = 7  # Nuevo tipo para movimientos posibles (amarillo)
 
 # Movimientos del caballo
 KNIGHT_MOVES = [(-2, -1), (-2, 1), (-1, -2), (-1, 2),
@@ -48,9 +49,36 @@ def get_knight_moves(board, pos):
     moves = []
     for dx, dy in KNIGHT_MOVES:
         nx, ny = x + dx, y + dy
-        if in_bounds(nx, ny) and board[nx][ny] not in (GREEN, RED, YOSHI_GREEN, YOSHI_RED):
+        if in_bounds(nx, ny) and board[nx][ny] not in (GREEN, RED, YOSHI_GREEN, YOSHI_RED, POSSIBLE_MOVE):
             moves.append((nx, ny))
     return moves
+
+def show_possible_moves(board, yoshi_pos):
+    """Muestra los movimientos posibles del Yoshi rojo en amarillo"""
+    new_board = clone_board(board)
+    possible_moves = get_knight_moves(board, yoshi_pos)
+    
+    # Marcar los movimientos posibles en amarillo
+    for x, y in possible_moves:
+        if new_board[x][y] not in (YOSHI_GREEN, YOSHI_RED):
+            new_board[x][y] = POSSIBLE_MOVE
+    
+    return new_board, possible_moves
+
+def clear_possible_moves(board):
+    """Limpia los movimientos posibles del tablero"""
+    new_board = clone_board(board)
+    # Restaurar las casillas que estaban marcadas como movimientos posibles
+    for x in range(BOARD_SIZE):
+        for y in range(BOARD_SIZE):
+            if new_board[x][y] == POSSIBLE_MOVE:
+                # Determinar qué tipo de casilla debería ser
+                special_positions = set(pos for zona in SPECIAL_ZONES.values() for pos in zona)
+                if (x, y) in special_positions:
+                    new_board[x][y] = SPECIAL
+                else:
+                    new_board[x][y] = NORMAL
+    return new_board
 
 def clone_board(board):
     """Crea una copia profunda del tablero"""
@@ -58,18 +86,35 @@ def clone_board(board):
 
 def apply_move(board, yoshi_pos, move, player):
     """Aplica un movimiento al tablero y devuelve el nuevo estado"""
-    new_board = clone_board(board)
+    # Primero limpiamos los movimientos posibles
+    new_board = clear_possible_moves(board)
     x, y = yoshi_pos
     new_x, new_y = move
 
-    # Restaurar celda anterior
-    debajo = GREEN if board[x][y] == YOSHI_GREEN else RED if board[x][y] == YOSHI_RED else NORMAL
-    new_board[x][y] = debajo
+    # Obtener el tablero original para verificar qué tipo de casilla era originalmente
+    original_board = crear_tablero()
+    
+    # Restaurar celda anterior a su estado original
+    if new_board[x][y] == YOSHI_GREEN:
+        # Si había un Yoshi verde, restaurar según el tablero original
+        special_positions = set(pos for zona in SPECIAL_ZONES.values() for pos in zona)
+        if (x, y) in special_positions and original_board[x][y] == SPECIAL:
+            new_board[x][y] = GREEN  # Mantener pintado de verde
+        else:
+            new_board[x][y] = NORMAL
+    elif new_board[x][y] == YOSHI_RED:
+        # Si había un Yoshi rojo, restaurar según el tablero original
+        special_positions = set(pos for zona in SPECIAL_ZONES.values() for pos in zona)
+        if (x, y) in special_positions and original_board[x][y] == SPECIAL:
+            new_board[x][y] = RED  # Mantener pintado de rojo
+        else:
+            new_board[x][y] = NORMAL
 
-    # Pintar solo si está en una posición válida y originalmente era SPECIAL
-    # Pintar solo si era SPECIAL y la posición está dentro de las coordenadas especiales
+    # Solo pintar si la casilla de destino es SPECIAL en el tablero original
+    # y está dentro de las zonas especiales
     special_positions = set(pos for zona in SPECIAL_ZONES.values() for pos in zona)
-    valor_original = board[new_x][new_y]
+    valor_original = original_board[new_x][new_y]
+    
     if (new_x, new_y) in special_positions and valor_original == SPECIAL:
         new_board[new_x][new_y] = GREEN if player == GREEN else RED
 
