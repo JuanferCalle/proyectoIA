@@ -51,10 +51,10 @@ def machine_turn():
     return False
 
 def show_final_message():
-    green_zones, red_zones = contar_zonas(board)
-    if green_zones > red_zones:
+    green_cells, red_cells = contar_casillas(board)  # ✅ updated here
+    if green_cells > red_cells:
         message = "¡Gana el Yoshi Verde!"
-    elif red_zones > green_zones:
+    elif red_cells > green_cells:
         message = "¡Gana el Yoshi Rojo!"
     else:
         message = "¡Empate!"

@@ -32,6 +32,8 @@ def draw_board(screen, board, selected_pos=None, possible_moves=None):
 
             if cell == SPECIAL:
                 color = SPECIAL_COLOR
+            elif cell == POSSIBLE_MOVE:
+                color = HIGHLIGHT
             elif cell == GREEN:
                 color = GREEN_COLOR
             elif cell == RED:
@@ -58,7 +60,7 @@ def draw_board(screen, board, selected_pos=None, possible_moves=None):
 
     # Mostrar marcador arriba
     font = pygame.font.SysFont(None, 36)
-    green_zones, red_zones = contar_zonas(board)
+    green_zones, red_zones = contar_casillas(board)
     green_text = font.render(f"Verde: {green_zones}", True, GREEN_COLOR)
     red_text = font.render(f"Rojo: {red_zones}", True, RED_COLOR)
 

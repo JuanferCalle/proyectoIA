@@ -72,7 +72,6 @@ def clear_possible_moves(board):
     for x in range(BOARD_SIZE):
         for y in range(BOARD_SIZE):
             if new_board[x][y] == POSSIBLE_MOVE:
-                # Determinar qué tipo de casilla debería ser
                 special_positions = set(pos for zona in SPECIAL_ZONES.values() for pos in zona)
                 if (x, y) in special_positions:
                     new_board[x][y] = SPECIAL
@@ -96,22 +95,18 @@ def apply_move(board, yoshi_pos, move, player):
     
     # Restaurar celda anterior a su estado original
     if new_board[x][y] == YOSHI_GREEN:
-        # Si había un Yoshi verde, restaurar según el tablero original
         special_positions = set(pos for zona in SPECIAL_ZONES.values() for pos in zona)
         if (x, y) in special_positions and original_board[x][y] == SPECIAL:
-            new_board[x][y] = GREEN  # Mantener pintado de verde
+            new_board[x][y] = GREEN
         else:
             new_board[x][y] = NORMAL
     elif new_board[x][y] == YOSHI_RED:
-        # Si había un Yoshi rojo, restaurar según el tablero original
         special_positions = set(pos for zona in SPECIAL_ZONES.values() for pos in zona)
         if (x, y) in special_positions and original_board[x][y] == SPECIAL:
-            new_board[x][y] = RED  # Mantener pintado de rojo
+            new_board[x][y] = RED
         else:
             new_board[x][y] = NORMAL
 
-    # Solo pintar si la casilla de destino es SPECIAL en el tablero original
-    # y está dentro de las zonas especiales
     special_positions = set(pos for zona in SPECIAL_ZONES.values() for pos in zona)
     valor_original = original_board[new_x][new_y]
     
@@ -123,28 +118,20 @@ def apply_move(board, yoshi_pos, move, player):
 
     return new_board, (new_x, new_y)
 
-def contar_zonas(board):
-    """Cuenta las zonas especiales ganadas por cada jugador"""
-    green_zones = 0
-    red_zones = 0
-    
-    for zone in SPECIAL_ZONES.values():
-        green_count = sum(1 for x, y in zone if board[x][y] == GREEN)
-        red_count = sum(1 for x, y in zone if board[x][y] == RED)
-        
-        if green_count > red_count:
-            green_zones += 1
-        elif red_count > green_count:
-            red_zones += 1
-            
-    return green_zones, red_zones
+def contar_casillas(board):
+    """
+    Cuenta el número total de casillas verdes y rojas pintadas en el tablero.
+    Devuelve una tupla: (cantidad_verde, cantidad_rojo)
+    """
+    green_cells = np.sum(board == GREEN)
+    red_cells = np.sum(board == RED)
+    return green_cells, red_cells
 
 def evaluate_board(board):
     """Función de evaluación heurística para el algoritmo minimax"""
     green_positions = np.argwhere(board == YOSHI_GREEN)
     red_positions = np.argwhere(board == YOSHI_RED)
 
-    # Caso terminal: algún Yoshi no existe
     if green_positions.size == 0 or red_positions.size == 0:
         if green_positions.size == 0:
             return float('-inf')  # Verde perdió
@@ -153,33 +140,19 @@ def evaluate_board(board):
     green_pos = tuple(green_positions[0])
     red_pos = tuple(red_positions[0])
 
-    # Métricas de evaluación
-    zone_scores = contar_zonas(board)
     cell_scores = {
         GREEN: np.sum(board == GREEN),
         RED: np.sum(board == RED)
     }
 
-    # Progreso en zonas no decididas
-    zone_progress = 0
-    for zone in SPECIAL_ZONES.values():
-        green_count = sum(1 for x, y in zone if board[x][y] == GREEN)
-        red_count = sum(1 for x, y in zone if board[x][y] == RED)
-        if green_count + red_count < 4:  # Zona no completada
-            zone_progress += (green_count - red_count)
-
-    # Movilidad (movimientos posibles)
     mobility = {
         GREEN: len(get_knight_moves(board, green_pos)),
         RED: len(get_knight_moves(board, red_pos))
     }
 
-    # Función de evaluación ponderada
     return (
-        100 * (zone_scores[0] - zone_scores[1]) +  # Zonas ganadas
-        5 * zone_progress +                       # Progreso en zonas
         2 * (cell_scores[GREEN] - cell_scores[RED]) +  # Casillas pintadas
-        0.5 * (mobility[GREEN] - mobility[RED])   # Movilidad
+        0.5 * (mobility[GREEN] - mobility[RED])       # Movilidad
     )
 
 def is_terminal(board):
