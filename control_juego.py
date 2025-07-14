@@ -3,9 +3,11 @@ import sys
 import numpy as np
 from zona_yoshi import *
 from GUI_yoshi import draw_board
+from GUI_yoshi import TOP_MARGIN
 from minimax import minimax
 from menu_niveles import seleccionar_nivel
 from zona_yoshi import contar_zonas_ganadas
+from zona_yoshi import contar_casillas
 
 pygame.init()
 
@@ -71,25 +73,34 @@ def machine_turn():
 
 
 def show_final_message():
-    zonas_verde, zonas_rojo = contar_zonas_ganadas(board)
-    if zonas_verde > zonas_rojo:
+    # 1) Cuenta casillas pintadas de cada jugador
+    green_cells, red_cells = contar_casillas(board)
+    print("DEBUG casillas pintadas → Verde:", green_cells, "Rojo:", red_cells)
+
+    # 2) Decide ganador o empate según esas cifras
+    if green_cells > red_cells:
         message = "¡Gana el Yoshi Verde!"
-    elif zonas_rojo > zonas_verde:
+    elif red_cells > green_cells:
         message = "¡Gana el Yoshi Rojo!"
     else:
         message = "¡Empate!"
-    
+
+    # 3) Renderiza el mensaje en el centro de la pantalla
     font = pygame.font.SysFont(None, 48)
     text = font.render(message, True, (0, 0, 0))
-    text_rect = text.get_rect(center=(BOARD_SIZE*CELL_SIZE/2, (60 + CELL_SIZE*BOARD_SIZE)/2))
+    x_center = BOARD_SIZE * CELL_SIZE / 2
+    y_center = (TOP_MARGIN + BOARD_SIZE * CELL_SIZE) / 2
+    text_rect = text.get_rect(center=(x_center, y_center))
 
-    
-    s = pygame.Surface((BOARD_SIZE*CELL_SIZE, BOARD_SIZE*CELL_SIZE), pygame.SRCALPHA)
-    s.fill((255, 255, 255, 128))
-    screen.blit(s, (0, 0))
+    # Capa semitransparente sobre el tablero
+    overlay = pygame.Surface((BOARD_SIZE * CELL_SIZE, BOARD_SIZE * CELL_SIZE), pygame.SRCALPHA)
+    overlay.fill((255, 255, 255, 180))
+    screen.blit(overlay, (0, TOP_MARGIN))
     screen.blit(text, text_rect)
     pygame.display.flip()
-    pygame.time.wait(3000)
+
+    # Pausa para que el usuario lea el resultado
+    pygame.time.wait(8000)
 
 #    Bucle principal
 running = True

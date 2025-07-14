@@ -26,6 +26,8 @@ SPECIAL_ZONES = {
     "bottom_right": [(7, 7), (6, 7), (5,7), (7,6), (7,5)]
 }
 
+special_positions = set(pos for zona in SPECIAL_ZONES.values() for pos in zona)
+
 def in_bounds(x, y):
     """Verifica si una posición está dentro del tablero"""
     return 0 <= x < BOARD_SIZE and 0 <= y < BOARD_SIZE
@@ -79,47 +81,51 @@ def clone_board(board):
     return np.copy(board)
 
 def apply_move(board, yoshi_pos, move, player):
-    """Aplica un movimiento al tablero y devuelve el nuevo estado"""
-    # Primero limpiamos los movimientos posibles
-    new_board = clear_possible_moves(board)
+    """
+    Mueve un Yoshi, pinta la casilla especial y actualiza el tablero.
+    - Restaura la casilla anterior.
+    - Pinta la nueva si es SPECIAL.
+    - Coloca el Yoshi.
+    """
+    new_board = clone_board(board)
     x, y = yoshi_pos
     new_x, new_y = move
 
-    # Obtener el tablero original para verificar qué tipo de casilla era originalmente
-    original_board = crear_tablero()
-    
-    # Restaurar celda anterior a su estado original
-    if new_board[x][y] == YOSHI_GREEN:
-        special_positions = set(pos for zona in SPECIAL_ZONES.values() for pos in zona)
-        if (x, y) in special_positions and original_board[x][y] == SPECIAL:
+    # Restaurar casilla anterior: si era SPECIAL y pintada, conserva el color
+    if (x, y) in special_positions:
+        if board[x][y] == YOSHI_GREEN or board[x][y] == GREEN:
             new_board[x][y] = GREEN
-        else:
-            new_board[x][y] = NORMAL
-    elif new_board[x][y] == YOSHI_RED:
-        special_positions = set(pos for zona in SPECIAL_ZONES.values() for pos in zona)
-        if (x, y) in special_positions and original_board[x][y] == SPECIAL:
+        elif board[x][y] == YOSHI_RED or board[x][y] == RED:
             new_board[x][y] = RED
         else:
-            new_board[x][y] = NORMAL
+            new_board[x][y] = SPECIAL
+    else:
+        new_board[x][y] = NORMAL
 
-    special_positions = set(pos for zona in SPECIAL_ZONES.values() for pos in zona)
-    valor_original = original_board[new_x][new_y]
-    
-    if (new_x, new_y) in special_positions and valor_original == SPECIAL:
+    # Pintar la nueva casilla si es SPECIAL
+    if (new_x, new_y) in special_positions:
         new_board[new_x][new_y] = GREEN if player == GREEN else RED
 
-    # Colocar Yoshi encima
+    # Colocar sprite del Yoshi encima
     new_board[new_x][new_y] = YOSHI_GREEN if player == GREEN else YOSHI_RED
 
     return new_board, (new_x, new_y)
 
 def contar_casillas(board):
     """
-    Cuenta el número total de casillas verdes y rojas pintadas en el tablero.
-    Devuelve una tupla: (cantidad_verde, cantidad_rojo)
+    Cuenta cuántas casillas especiales ha pintado cada jugador,
+    incluyendo las que ocupan ahora con su Yoshi.
     """
     green_cells = np.sum(board == GREEN)
-    red_cells = np.sum(board == RED)
+    red_cells   = np.sum(board == RED)
+
+    # +1 adicional por cada YOSHI_* que esté sobre una casilla special pintada
+    for (x, y) in special_positions:
+        if board[x][y] == YOSHI_GREEN:
+            green_cells += 1
+        elif board[x][y] == YOSHI_RED:
+            red_cells += 1
+
     return green_cells, red_cells
 
 def evaluate_board(board):
