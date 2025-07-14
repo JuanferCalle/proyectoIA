@@ -86,7 +86,7 @@ def show_final_message():
     pygame.display.flip()
     pygame.time.wait(3000)
 
-# Bucle principal
+#    Bucle principal
 running = True
 turno_humano = False  # Máquina empieza primero
 display_board = board  # Tablero que se muestra (puede incluir movimientos posibles)
