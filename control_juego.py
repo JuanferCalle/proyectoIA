@@ -5,6 +5,7 @@ from zona_yoshi import *
 from GUI_yoshi import draw_board
 from minimax import minimax
 from menu_niveles import seleccionar_nivel
+from zona_yoshi import contar_zonas_ganadas
 
 pygame.init()
 
@@ -13,8 +14,22 @@ nivel = seleccionar_nivel()
 screen = pygame.display.set_mode((CELL_SIZE * BOARD_SIZE, CELL_SIZE * BOARD_SIZE + 60))
 pygame.display.set_caption("Yoshi's Zones")
 
-# Inicializar tablero
+# Inicializar tablero SOLO con normales y especiales
 board = crear_tablero()
+
+# Poner los Yoshis en posiciones aleatorias válidas
+board, green_pos, red_pos = posiciones_iniciales_aleatorias(board)
+
+# Debug: Asegúrate que los Yoshis no estén en zonas especiales ni coincidan
+zonas_especiales = set(pos for zona in SPECIAL_ZONES.values() for pos in zona)
+green_pos = tuple(np.argwhere(board == YOSHI_GREEN)[0])
+red_pos = tuple(np.argwhere(board == YOSHI_RED)[0])
+assert green_pos not in zonas_especiales, f"Yoshi verde en zona especial: {green_pos}"
+assert red_pos not in zonas_especiales, f"Yoshi rojo en zona especial: {red_pos}"
+assert green_pos != red_pos, "¡Los Yoshis coinciden!"
+print("DEBUG: Yoshi verde en:", green_pos)
+print("DEBUG: Yoshi rojo en:", red_pos)
+
 
 # Determinar profundidad por nivel
 if nivel == "facil":
@@ -51,10 +66,10 @@ def machine_turn():
     return False
 
 def show_final_message():
-    green_cells, red_cells = contar_casillas(board)  # ✅ updated here
-    if green_cells > red_cells:
+    zonas_verde, zonas_rojo = contar_zonas_ganadas(board)
+    if zonas_verde > zonas_rojo:
         message = "¡Gana el Yoshi Verde!"
-    elif red_cells > green_cells:
+    elif zonas_rojo > zonas_verde:
         message = "¡Gana el Yoshi Rojo!"
     else:
         message = "¡Empate!"
@@ -119,20 +134,27 @@ while running:
                 
                 if (clicked_row, clicked_col) in possible_moves:
                     if move_yoshi_red((clicked_row, clicked_col)):
-                        turno_humano = False
-                        
-                        # Limpiar movimientos posibles antes del turno de la máquina
+                        # Limpiar movimientos posibles antes de revisar si terminó
                         board = clear_possible_moves(board)
-                        
-                        # Turno de la máquina
-                        if not is_terminal(board):
-                            pygame.time.delay(500)  # Pequeña pausa para ver el movimiento
-                            if machine_turn():
-                                turno_humano = True
-                        
+
+                        # Revisar si el juego terminó INMEDIATAMENTE después del movimiento humano
                         if is_terminal(board):
                             show_final_message()
                             running = False
+                            break  # Sal de eventos para evitar doble mensaje
+
+                        turno_humano = False
+
+                        # Turno de la máquina (si no terminó el juego)
+                        pygame.time.delay(500)
+                        if machine_turn():
+                            turno_humano = True
+
+                        # Después del movimiento de la máquina, revisar si terminó (por si fue la IA la que cerró el juego)
+                        if is_terminal(board):
+                            show_final_message()
+                            running = False
+                            break
             except IndexError:
                 print("Error en el movimiento del jugador")
                 continue

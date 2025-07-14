@@ -31,17 +31,12 @@ def in_bounds(x, y):
     return 0 <= x < BOARD_SIZE and 0 <= y < BOARD_SIZE
 
 def crear_tablero():
-    """Crea un tablero predefinido con posiciones fijas"""
-    return np.array([
-        [2, 3, 2, 1, 1, 4, 2, 2],
-        [2, 1, 1, 1, 1, 1, 1, 2],
-        [3, 1, 5, 1, 1, 1, 1, 2],
-        [1, 1, 1, 1, 1, 1, 1, 1],
-        [1, 1, 1, 6, 1, 1, 1, 1],
-        [2, 1, 1, 1, 1, 1, 1, 2],
-        [2, 1, 1, 1, 1, 1, 1, 2],
-        [2, 2, 2, 1, 1, 2, 2, 2],
-    ])
+    board = np.full((BOARD_SIZE, BOARD_SIZE), NORMAL)
+    for zona in SPECIAL_ZONES.values():
+        for x, y in zona:
+            board[x][y] = SPECIAL
+    return board
+
 
 def get_knight_moves(board, pos):
     """Obtiene todos los movimientos válidos de caballo desde una posición"""
@@ -162,3 +157,31 @@ def is_terminal(board):
 if __name__ == "__main__":
     print("Este archivo contiene las reglas del juego y no debe ejecutarse directamente.")
     print("Ejecuta 'control_juego.py' para iniciar el juego.")
+
+def posiciones_iniciales_aleatorias(board):
+    posiciones_especiales = set(pos for zona in SPECIAL_ZONES.values() for pos in zona)
+    posiciones_validas = [(i, j) for i in range(BOARD_SIZE) for j in range(BOARD_SIZE)
+                          if (i, j) not in posiciones_especiales]
+    pos_yoshi_verde, pos_yoshi_rojo = random.sample(posiciones_validas, 2)
+    # LIMPIA CUALQUIER YOSHI DEL TABLERO
+    board[board == YOSHI_GREEN] = NORMAL
+    board[board == YOSHI_RED] = NORMAL
+    board[pos_yoshi_verde] = YOSHI_GREEN
+    board[pos_yoshi_rojo] = YOSHI_RED
+    return board, pos_yoshi_verde, pos_yoshi_rojo
+
+
+
+def contar_zonas_ganadas(board):
+    zonas_verde = 0
+    zonas_rojo = 0
+    for zona in SPECIAL_ZONES.values():
+        verdes = sum(1 for x, y in zona if board[x][y] == GREEN)
+        rojas = sum(1 for x, y in zona if board[x][y] == RED)
+        if verdes + rojas == 5:  # La zona ya está completamente pintada
+            if verdes > rojas:
+                zonas_verde += 1
+            elif rojas > verdes:
+                zonas_rojo += 1
+            # Empate en la zona: nadie suma
+    return zonas_verde, zonas_rojo
