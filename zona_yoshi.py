@@ -123,32 +123,41 @@ def contar_casillas(board):
     return green_cells, red_cells
 
 def evaluate_board(board):
-    """Función de evaluación heurística para el algoritmo minimax"""
     green_positions = np.argwhere(board == YOSHI_GREEN)
     red_positions = np.argwhere(board == YOSHI_RED)
 
-    if green_positions.size == 0 or red_positions.size == 0:
-        if green_positions.size == 0:
-            return float('-inf')  # Verde perdió
-        return float('inf')      # Rojo perdió
+    if green_positions.size == 0:
+        return float('-inf')  
+    if red_positions.size == 0:
+        return float('inf')   
 
     green_pos = tuple(green_positions[0])
     red_pos = tuple(red_positions[0])
 
-    cell_scores = {
-        GREEN: np.sum(board == GREEN),
-        RED: np.sum(board == RED)
-    }
+    green_cells = np.sum(board == GREEN)
+    red_cells = np.sum(board == RED)
 
-    mobility = {
-        GREEN: len(get_knight_moves(board, green_pos)),
-        RED: len(get_knight_moves(board, red_pos))
-    }
+    green_moves = len(get_knight_moves(board, green_pos))
+    red_moves = len(get_knight_moves(board, red_pos))
 
-    return (
-        2 * (cell_scores[GREEN] - cell_scores[RED]) +  # Casillas pintadas
-        0.5 * (mobility[GREEN] - mobility[RED])       # Movilidad
+    if green_moves == 0:
+        return float('-inf')
+    if red_moves == 0:
+        return float('inf')
+
+    # Opcional: valorar casillas especiales pintadas
+    special_positions = set(pos for zona in SPECIAL_ZONES.values() for pos in zona)
+    special_green = sum(1 for x, y in special_positions if board[x, y] == GREEN)
+    special_red = sum(1 for x, y in special_positions if board[x, y] == RED)
+
+    # Heurística ponderada
+    score = (
+        3 * (green_cells - red_cells) +
+        1 * (green_moves - red_moves) +
+        2 * (special_green - special_red)
     )
+
+    return score
 
 def is_terminal(board):
     """Determina si el juego ha terminado (no quedan zonas especiales sin pintar)"""

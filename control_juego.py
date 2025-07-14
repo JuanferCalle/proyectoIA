@@ -30,9 +30,12 @@ assert green_pos != red_pos, "¡Los Yoshis coinciden!"
 print("DEBUG: Yoshi verde en:", green_pos)
 print("DEBUG: Yoshi rojo en:", red_pos)
 
+#memoria yoshi verde, esto al inicio
+last_green_pos = None
+
 
 # Determinar profundidad por nivel
-if nivel == "facil":
+if nivel == "fácil":
     level_depth = 2
 elif nivel == "medio":
     level_depth = 4
@@ -51,19 +54,21 @@ def move_yoshi_red(new_pos):
     return False
 
 def machine_turn():
-    global board
+    global board, last_green_pos
     try:
         green_pos = tuple(np.argwhere(board == YOSHI_GREEN)[0])
         red_pos = tuple(np.argwhere(board == YOSHI_RED)[0])
         
-        _, best_move = minimax(board, green_pos, red_pos, 0, True, float('-inf'), float('inf'), level_depth)
+        _, best_move = minimax(board, green_pos, red_pos, 0, True, float('-inf'), float('inf'), level_depth, last_green_pos)
         
         if best_move:
             board, _ = apply_move(board, green_pos, best_move, GREEN)
+            last_green_pos = green_pos  
             return True
     except IndexError:
         print("Error: Yoshi Verde no encontrado")
     return False
+
 
 def show_final_message():
     zonas_verde, zonas_rojo = contar_zonas_ganadas(board)
@@ -90,6 +95,10 @@ def show_final_message():
 running = True
 turno_humano = False  # Máquina empieza primero
 display_board = board  # Tablero que se muestra (puede incluir movimientos posibles)
+
+draw_board(screen, board)          # Dibuja el tablero con sólo la posición inicial
+pygame.display.flip()              # Refresca la ventana
+pygame.time.wait(1000)
 
 # Primer turno de la máquina
 if not is_terminal(board):
